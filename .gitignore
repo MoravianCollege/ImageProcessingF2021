@@ -1,0 +1,16 @@
+.*
+!/.gitignore
+.ipynb_checkpoints/
+__pycache__/
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+*.tmp
+*.bak
+*.swp
+*.cache
+*~
+\#*\#
+temp/
+tmp/
+Icon[]
