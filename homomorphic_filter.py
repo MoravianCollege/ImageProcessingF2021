@@ -14,4 +14,8 @@ def homomorphic_filter(im, cutoff, order=2, lowgain=0.5, highgain=2):
     bw_fltr = 1/(1+0.414*((x*x+y*y)/(cutoff*cutoff))**order)
     fltr = lowgain + (highgain - lowgain) * (1 - bw_fltr)
     fltred = fltr * ft
-    return exp(fft.ifft2(fft.ifftshift(fltred)).real).clip(0, 255).astype('uint8')
+    out = exp(fft.ifft2(fft.ifftshift(fltred)).real)
+    # rescale the intensities
+    out -= out.min()
+    out *= 255/out.max()
+    return out.clip(0, 255).astype('uint8')
