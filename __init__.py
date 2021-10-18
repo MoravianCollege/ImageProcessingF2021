@@ -7,3 +7,4 @@ from .fourier_filters import (
     butterworth_low_pass, butterworth_high_pass,
     gaussian, gaussian_low_pass, gaussian_high_pass)
 from .utils import nonzero, psf2otf, otf2psf
+from .zerocross import zerocross
