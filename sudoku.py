@@ -2,11 +2,11 @@ from numpy import flatnonzero
 from numpy.lib.stride_tricks import as_strided
 
 
-def solve_sudoku(board):
+def solve(board):
     """
     Solve a Sudoku board. The board is represented as a 9x9 array of values 0-9. The value 0
     represents a blank cell. The given board is modified so copy it if the original should be
-    kept. 
+    kept. This returns the given board.
     """
     working = init_working(board)
 
@@ -38,21 +38,26 @@ def print_board(board):
     print(line)
 
 
-def check_board(board, orig_board=None):
+def is_valid_board(board, orig_board=None, allow_incomplete=True):
     """
     Checks the validity of a board (1-9 in each row, column, and 3x3 box).
     Optionally checks that no values in the original board (except 0) have changed.
+    If allow_incomplete is given as False, then only completely filled-out boards are allowed.
     """
     if orig_board is not None:
         orig_board_filled = orig_board != 0
         if (board[orig_board_filled] != orig_board[orig_board_filled]).any():
             return False
-    most_set = set(range(1,10))
-    if (any(set(board[i,:]) != most_set for i in range(9)) or
-        any(set(board[:,j]) != most_set for j in range(9)) or
-        any(any(set(board[3*i:3*i+3,3*j:3*j+3].ravel()) != most_set for j in range(3)) for i in range(3))):
-            return False
-    return True
+    if allow_incomplete:
+        def is_good(a):
+            nz = a[a!=0]  # all of the non-zero values
+            return (nz <= 9).all() and (nz > 0).all() and len(set(nz)) == len(nz)
+    else:
+        target_set = set(range(1,10))
+        def is_good(a): return set(a) == target_set
+    return (all(is_good(board[i,:]) for i in range(9)) and
+            all(is_good(board[:,j]) for j in range(9)) and
+            all(all(is_good(board[3*i:3*i+3,3*j:3*j+3].ravel()) for j in range(3)) for i in range(3)))
 
 
 ##### Utility Functions #####
@@ -99,10 +104,14 @@ def find_simple_values(board, working, axis):
     found = (working.sum(axis) == 1).nonzero()
     if len(found[0]) == 0: return False
     for a, b in zip(*found):
-        if   axis == 0: i, j, n = flatnonzero(working[:,a,b])[0], a, b
-        elif axis == 1: i, j, n = a, flatnonzero(working[a,:,b])[0], b
-        elif axis == 2: i, j, n = a, b, flatnonzero(working[a,b,:])[0]
-        set_board_value(board, working, i, j, n)
+        try:
+            if   axis == 0: i, j, n = flatnonzero(working[:,a,b])[0], a, b
+            elif axis == 1: i, j, n = a, flatnonzero(working[a,:,b])[0], b
+            elif axis == 2: i, j, n = a, b, flatnonzero(working[a,b,:])[0]
+            set_board_value(board, working, i, j, n)
+        except IndexError:
+            # we likely have an invalid board, but keep going anyways
+            continue
     return True
 
 
@@ -113,8 +122,12 @@ def find_simple_values_in_block(board, working):
     found = (working_blocks.sum(2).sum(2) == 1).nonzero() # sum the entire block
     if len(found[0]) == 0: return False
     for x,y,n in zip(*found):
-        for i, j in zip(*working_blocks[x,y,:,:,n].nonzero()):
-            set_board_value(board, working, i+x*3,j+y*3,n)
+        try:
+            for i, j in zip(*working_blocks[x,y,:,:,n].nonzero()):
+                set_board_value(board, working, i+x*3,j+y*3,n)
+        except IndexError:
+            # we likely have an invalid board, but keep going anyways
+            continue
     return True
 
 
@@ -133,7 +146,11 @@ def reduce_working_space(working):
 
         # Attempt methods 1-3
         for method in methods:
-            method(working)
+            try:
+                method(working)
+            except IndexError:
+                # we likely have an invalid board, but keep going anyways
+                continue
         rem = working.sum()
 
         if rem == old_rem:
@@ -142,7 +159,11 @@ def reduce_working_space(working):
                 # We are in trouble, we did nothing so far this entire call
                 # Lets try some really 'expensive' methods
                 for N in range(3, working.sum(2).max()+1):
-                    __wr_method_4(working, N)
+                    try:
+                        __wr_method_4(working, N)
+                    except IndexError:
+                        # we likely have an invalid board, but keep going anyways
+                        pass
                     rem = working.sum()
                     if rem != old_rem:
                         # Yeah! It worked.
