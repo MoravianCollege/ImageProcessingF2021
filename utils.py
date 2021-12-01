@@ -35,3 +35,14 @@ def otf2psf(otf, shape):
     psf = fft.ifft2(otf)
     psf = np.roll(psf, (shape[0]//2, shape[1]//2), axis=(0,1)) # shift PSF so center is in middle
     return psf[:shape[0], :shape[1]]
+
+
+def cos(pt0, pt1, pt2):
+    """
+    Calculate the cosine of the angle between the vectors from pt0 to pt1 and
+    pt0 to pt2. This is done using the dot product and normalization.
+    """
+    v1 = (pt1 - pt0).astype(float)
+    v2 = (pt2 - pt0).astype(float)
+    return v1.dot(v2) / np.sqrt(nonzero((v1*v1).sum()*(v2*v2).sum()))
+

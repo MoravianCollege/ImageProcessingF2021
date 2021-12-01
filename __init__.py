@@ -6,5 +6,5 @@ from .fourier_filters import (
     ideal_low_pass, ideal_high_pass,
     butterworth_low_pass, butterworth_high_pass,
     gaussian, gaussian_low_pass, gaussian_high_pass)
-from .utils import nonzero, psf2otf, otf2psf
+from .utils import nonzero, psf2otf, otf2psf, cos
 from .zerocross import zerocross
