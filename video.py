@@ -1,7 +1,7 @@
 from io import BytesIO
 from time import time
 from threading import Thread
-from queue import Queue
+from queue import Queue, Full
 
 import ipywidgets as widgets
 from IPython.display import display
@@ -38,7 +38,7 @@ def __image_encode(im, fps=""):
     im_out.save(f, format='png')
     return f.getvalue()
 
-def run_video(process_frame=lambda im:im, fps=None, width=640, camera_num=0):
+def run_video(process_frame=lambda im:im, fps=None, width=640, camera_num=0, return_orig=False):
     """
     Runs OpenCV video from a connected camera as Jupyter notebook output. Each frame from the camera
     is given to process_frame before being displayed. The default does no processing. The display is
@@ -82,7 +82,7 @@ def run_video(process_frame=lambda im:im, fps=None, width=640, camera_num=0):
         thread = Thread(target=__capture_frames_thread, args=(video_capture, queue, output_shape), daemon=True)
         thread.start()
 
-        while thread.is_alive():
+        while thread.is_alive() and __capture_frames_thread.is_processing:
             # Keep getting new frames while they are available
             try:
                 # Get the next image
@@ -98,8 +98,10 @@ def run_video(process_frame=lambda im:im, fps=None, width=640, camera_num=0):
                 image.value = __image_encode(im, round(1/(stop-start), 1))
             except KeyboardInterrupt: break  # watch for a keyboard interrupt (stop button) to stop the script gracefully
         __capture_frames_thread.is_processing = False
-        return im  # returns the final processed image
-    finally: video_capture.release()
+        return frame if return_orig else im  # returns the final processed image or original frame
+    finally:
+        __capture_frames_thread.is_processing = False
+        video_capture.release()
 
 
 def __capture_frames_thread(video_capture, queue, output_shape):
@@ -116,4 +118,8 @@ def __capture_frames_thread(video_capture, queue, output_shape):
                frame = cv2.resize(frame, reversed_output_shape)
             queue.put(bgr2rgb(frame))
     finally:
-        queue.put(None)
+        __capture_frames_thread.is_processing = False
+        try:
+            queue.put(None, timeout=1)
+        except Full:
+            pass
